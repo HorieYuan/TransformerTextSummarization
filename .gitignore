@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# custom
+.vscode/
+model/*
+data/*
+!data/data_sample.tsv
+logs/*

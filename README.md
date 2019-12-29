@@ -1,1 +1,3 @@
 # TransformerSummarization
+
+基于Transformer的文本摘要模型
