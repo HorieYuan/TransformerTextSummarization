@@ -1,50 +1,33 @@
 import gluonnlp as nlp
 import mxnet as mx
+from gluonnlp.data import BERTTokenizer
 from mxnet import gluon, nd, test_utils
-
-import hyper_parameters as hp
-
-# 文本长
-MAX_SOURCE_LEN = hp.MAX_SOURCE_LEN
-MAX_TARGET_LEN = hp.MAX_TARGET_LEN
-VOCAB_SIZE = hp.VOCAB_SIZE
-PAD = hp.PAD
-BOS = hp.BOS
-EOS = hp.EOS
+from mxnet.gluon import data as gdata
 
 
-class PairsDataset(gluon.data.Dataset):
+class PairsDataset(gdata.Dataset):
     def __init__(self, data_path, **kwargs):
         super(PairsDataset, self).__init__(**kwargs)
-        self.tokenizer = nlp.data.JiebaTokenizer()
-        self.sources, self.targets = self._load_data(data_path)
-        self.vocab
+        self.sources, self.targets = self._get_data(data_path)
 
-    def _load_data(self, data_path):
+    def _get_data(self, data_path):
         data_source = []
         data_summa = []
-        tokens = []
         data_count = 0
         error_data_count = 0
-
         with open(data_path, 'r', encoding='utf-8') as fr:
             lines = fr.readlines()
             for line in lines:
                 line = line.rstrip('\n')
                 line = line.split('\t')
                 if len(line) == 2:
-                    source = self.tokenizer(line[0])
-                    target = self.tokenizer(line[1])
-                    tokens += list(set(source))
-                    tokens += list(set(target))
+                    source = line[0]
+                    target = line[1]
                     data_source.append(source)
                     data_summa.append(target)
                     data_count += 1
                 else:
                     error_data_count += 1
-        counter = nlp.data.count_tokens(tokens)
-        self.vocab = nlp.Vocab(counter, max_size=VOCAB_SIZE,
-                               padding_token=PAD, bos_token=BOS, eos_token=EOS)
         print(data_count, '条数据, ', error_data_count, '条读取错误')
         return data_source, data_summa
 
@@ -54,9 +37,6 @@ class PairsDataset(gluon.data.Dataset):
     def __len__(self):
         return len(self.sources)
 
-    def get_vocab(self):
-        return self.vocab
-
 
 class DatasetAssiant():
     def __init__(self, src_vocab=None, tgt_vocab=None, max_src_len=None, max_tgt_len=None):
@@ -64,21 +44,26 @@ class DatasetAssiant():
         self.tgt_vocab = tgt_vocab
         self.max_src_len = max_src_len
         self.max_tgt_len = max_tgt_len
-        self.bos_token = BOS
-        self.eos_token = EOS
+        self.bert_src_tokenzier = BERTTokenizer(src_vocab)
+        self.bert_tgt_tokenzier = BERTTokenizer(tgt_vocab)
+        # self.glossary = get_glossary_vocab()
 
     def pair_sentence_process(self, *src_and_tgt):
         src, tgt = src_and_tgt
+        assert isinstance(src, str), 'the input type must be str'
+        assert isinstance(tgt, str), 'the input type must be str'
+
+        src = self.bert_src_tokenzier(src)
+        tgt = self.bert_tgt_tokenzier(tgt)
 
         if self.max_src_len and len(src) > self.max_src_len - 2:
             src = src[0:self.max_src_len]
         if self.max_tgt_len and len(tgt) > self.max_tgt_len - 1:
             tgt = tgt[0:self.max_tgt_len]
 
-        # src = [self.bos_token] + src + [self.eos_token]
-        # tgt = [self.bos_token] + tgt
-        # label = tgt[1:] + [self.eos_token]
-        label = tgt[1:] + [self.eos_token]
+        src = [self.src_vocab.cls_token] + src + [self.src_vocab.sep_token]
+        tgt = [self.tgt_vocab.cls_token] + tgt
+        label = tgt[1:] + [self.tgt_vocab.sep_token]
 
         src_valid_len = len(src)
         tgt_valid_len = len(tgt)
@@ -108,9 +93,8 @@ class PairsDataLoader(object):
             nlp.data.batchify.Pad(pad_val=self.tgt_pad_val),
             nlp.data.batchify.Stack(dtype="float32"),
             nlp.data.batchify.Stack(dtype="float32"),)
-        dataloader = gluon.data.DataLoader(dataset=self.dataset, batch_size=self.batch_size,
-                                           shuffle=self.shuffle, batchify_fn=batchify_fn,
-                                           num_workers=self.num_workers)
+        dataloader = gdata.DataLoader(dataset=self.dataset, batch_size=self.batch_size,
+                                      shuffle=self.shuffle, batchify_fn=batchify_fn, num_workers=self.num_workers)
         return dataloader
 
     def __iter__(self):

@@ -1,6 +1,7 @@
 import os
 import pickle
 
+import gluonnlp as nlp
 import mxnet as mx
 from mxboard import SummaryWriter
 from mxnet import autograd, gluon, init, nd
@@ -92,9 +93,9 @@ def train(transformer, data_iter, lr, num_epochs, vocab, ctx):
 
             l_sum += b_loss
             if i % 100 == 0:
-                info = "\tbatch %d, batch_loss %.3f" % (i, b_loss)
+                info = "epoch %d, batch %d, batch_loss %.3f" % (epoch, i, b_loss)
                 print(info)
-                # sw.add_scalar(tag='batch_loss', value=b_loss, global_step=i)
+                sw.add_scalar(tag='batch_loss', value=b_loss, global_step=i)
 
         cur_loss = l_sum / len(data_iter)
         # 保存模型
@@ -113,14 +114,15 @@ def train(transformer, data_iter, lr, num_epochs, vocab, ctx):
 
 def main(data_path):
     dataset = PairsDataset(data_path)
-    vocab = dataset.get_vocab()
+    _, vocab = nlp.model.get_model('bert_12_768_12', dataset_name='wiki_cn_cased',
+                                   ctx=CTX, pretrained=True, use_pooler=False, use_decoder=False, use_classifier=False)
     assiant = DatasetAssiant(vocab, vocab, MAX_SOURCE_LEN, MAX_TARGET_LEN)
     dataloader = PairsDataLoader(dataset, BATCH_SIZE, assiant)
 
-    with open(VOCAB_PATH, 'wb') as fw:
-        pickle.dump(vocab, fw)
+    # with open(VOCAB_PATH, 'wb') as fw:
+    #     pickle.dump(vocab, fw)
     NWORDS = len(vocab)
-
+    print(NWORDS)
     transformer = Transformer(vocab, vocab, EMBED_SIZE, MODEL_DIM,
                               HEAD_NUM, LAYER_NUM, FFN_DIM, DROPOUT, ATT_DROPOUT, FFN_DROPOUT, CTX)
     transformer.initialize(init.Xavier(), ctx=CTX)
@@ -128,4 +130,6 @@ def main(data_path):
 
 
 if __name__ == "__main__":
-    main(TRAIN_DATA_PATH)
+    data_path = '/home/horie/workspace/TransformerSummarization/data/lcsts.tsv'
+    # data_path = '/home/horie/workspace/TransformerSummarization/data/data_sample.tsv'
+    main(data_path)
