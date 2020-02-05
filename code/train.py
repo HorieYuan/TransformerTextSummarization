@@ -130,6 +130,4 @@ def main(data_path):
 
 
 if __name__ == "__main__":
-    data_path = '/home/horie/workspace/TransformerSummarization/data/lcsts.tsv'
-    # data_path = '/home/horie/workspace/TransformerSummarization/data/data_sample.tsv'
-    main(data_path)
+    main(TRAIN_DATA_PATH)

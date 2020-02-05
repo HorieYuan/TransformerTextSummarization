@@ -1,0 +1,4 @@
+jieba==0.39
+gluonnlp==0.8.1
+mxnet-cu101==1.5.1.post0
+numpy==1.16.4

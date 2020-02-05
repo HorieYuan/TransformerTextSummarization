@@ -1,5 +1,4 @@
 import gluonnlp as nlp
-import jieba
 import mxnet as mx
 from gluonnlp.data import BERTTokenizer
 from mxnet import nd
